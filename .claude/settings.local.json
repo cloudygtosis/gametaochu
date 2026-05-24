@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(npx skills add https://gitee.com/Pippit-dev/pippit-skills.git -y -g)"
+    ]
+  }
+}

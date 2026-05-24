@@ -1,0 +1,52 @@
+{
+  "id": "prologue_arrival",
+  "title": "毕业旅行",
+  "background": "prologue_mountain_bus_arrival",
+  "nodes": [
+    {
+      "id": "start",
+      "type": "dialogue",
+      "speaker": "旁白",
+      "text": "大四最后一个春天，小月和林雅放弃了热门城市，决定找一处没人挤、适合拍汉服毕业照的古镇。",
+      "next": "linya_post"
+    },
+    {
+      "id": "linya_post",
+      "type": "dialogue",
+      "speaker": "林雅",
+      "activeSide": "right",
+      "left": "xiaoyue_normal_modern",
+      "right": "linya_normal_modern",
+      "text": "我刷到这个朱砂镇了，浙江山里，游客少，汉服馆还便宜。评论都说傍晚灯笼一亮，特别出片。",
+      "next": "bus_warning"
+    },
+    {
+      "id": "bus_warning",
+      "type": "dialogue",
+      "speaker": "司机",
+      "left": "xiaoyue_normal_modern",
+      "right": "linya_surprised_modern",
+      "activeSide": "right",
+      "text": "到站了。你们两个姑娘拍照归拍照，酉时前最好出来。山里天黑得快，镇上也……不太留生人。",
+      "next": "xiaoyue_uneasy"
+    },
+    {
+      "id": "xiaoyue_uneasy",
+      "type": "dialogue",
+      "speaker": "小月",
+      "left": "xiaoyue_normal_modern",
+      "right": "linya_normal_modern",
+      "activeSide": "left",
+      "text": "他说得像恐怖片开头一样。林雅，我们真的要进去吗？",
+      "next": "linya_push"
+    },
+    {
+      "id": "linya_push",
+      "type": "ending",
+      "title": "进入朱砂镇",
+      "left": "xiaoyue_normal_modern",
+      "right": "linya_normal_modern",
+      "text": "林雅晃了晃手机，说来都来了。雾气从牌坊后漫出来，石路尽头的红灯笼一盏接一盏亮起。"
+    }
+  ]
+}

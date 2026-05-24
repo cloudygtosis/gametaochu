@@ -1,0 +1,103 @@
+{
+  "id": "scene5_dressingroom",
+  "title": "更衣室",
+  "background": "scene5_dressingroom",
+  "nodes": [
+    {
+      "id": "start",
+      "type": "dialogue",
+      "speaker": "小月",
+      "activeSide": "left",
+      "left": "xiaoyue_scared_guifei",
+      "text": "奇怪……盘扣怎么突然扣得这么紧？刚才明明不是这样的。",
+      "autosave": true,
+      "next": "mirror_first"
+    },
+    {
+      "id": "mirror_first",
+      "type": "effect",
+      "effect": "mirrorPulse",
+      "speaker": "小月",
+      "activeSide": "left",
+      "left": "xiaoyue_scared_guifei",
+      "text": "镜子里，红衣女子的嘴角比小月先弯了起来。",
+      "next": "choice_mirror"
+    },
+    {
+      "id": "choice_mirror",
+      "type": "choice",
+      "speaker": "小月",
+      "left": "xiaoyue_scared_guifei",
+      "prompt": "镜中出现一个穿朱砂衣的古代女子，正隔着铜镜看她。",
+      "autosave": true,
+      "options": [
+        {
+          "id": "call_linya",
+          "icon": "📜",
+          "label": "大喊闺蜜",
+          "consequence": "无人回应，气氛升级",
+          "next": "call_linya"
+        },
+        {
+          "id": "deny_illusion",
+          "icon": "🔍",
+          "label": "闭眼默念“这是幻觉”",
+          "consequence": "触发隐藏台词",
+          "flag": "sawMirrorTruth",
+          "next": "hidden_mirror_line"
+        },
+        {
+          "id": "tear_clothes",
+          "icon": "❌",
+          "label": "用力扯衣服",
+          "consequence": "死亡结局",
+          "death": true,
+          "next": "death_cinnabar_skin"
+        }
+      ]
+    },
+    {
+      "id": "call_linya",
+      "type": "dialogue",
+      "speaker": "小月",
+      "activeSide": "left",
+      "left": "xiaoyue_scared_guifei",
+      "text": "林雅！你听得到吗？外面有人吗？",
+      "next": "no_answer"
+    },
+    {
+      "id": "hidden_mirror_line",
+      "type": "dialogue",
+      "speaker": "镜中女子",
+      "activeSide": "left",
+      "left": "xiaoyue_scared_guifei",
+      "text": "不是幻觉。你只是终于看见了自己该穿的衣裳。",
+      "next": "no_answer"
+    },
+    {
+      "id": "death_cinnabar_skin",
+      "type": "death",
+      "title": "死亡结局：朱砂入骨",
+      "left": "xiaoyue_possessed_guifei",
+      "text": "小月猛地扯开盘扣，红色却从线脚里渗出，像活物一样钻进皮肤。她倒在镜前，铜镜里的人仍站着。",
+      "retryChoice": "scene5_dressingroom:choice_mirror"
+    },
+    {
+      "id": "no_answer",
+      "type": "dialogue",
+      "speaker": "旁白",
+      "left": "xiaoyue_scared_guifei",
+      "text": "门外没有林雅的声音。连街上的风声也被什么东西堵住了。",
+      "next": "crossing"
+    },
+    {
+      "id": "crossing",
+      "type": "effect",
+      "effect": "crossing",
+      "speaker": "旁白",
+      "left": "xiaoyue_possessed_guifei",
+      "text": "铜镜碎裂前，小月看见自己的影子被朱砂红一点点填满。",
+      "next": "scene6_after_crossing:start"
+    }
+  ]
+}

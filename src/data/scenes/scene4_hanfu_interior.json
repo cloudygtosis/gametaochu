@@ -1,0 +1,121 @@
+{
+  "id": "scene4_hanfu_interior",
+  "title": "汉服馆内",
+  "background": "scene4_hanfu_interior",
+  "nodes": [
+    {
+      "id": "start",
+      "type": "dialogue",
+      "speaker": "林雅",
+      "activeSide": "right",
+      "left": "xiaoyue_normal_modern",
+      "right": "linya_normal_modern",
+      "text": "这家店还挺有味道的，就是……安静得有点过分。",
+      "next": "shopkeeper_enter"
+    },
+    {
+      "id": "shopkeeper_enter",
+      "type": "dialogue",
+      "speaker": "老板娘",
+      "activeSide": "right",
+      "left": "xiaoyue_normal_modern",
+      "right": "laobanniang_normal",
+      "text": "两位姑娘来得正好。今日店里，只剩一套最衬人的衣裳。",
+      "next": "xiaoyue_notice"
+    },
+    {
+      "id": "xiaoyue_notice",
+      "type": "dialogue",
+      "speaker": "小月",
+      "activeSide": "left",
+      "left": "xiaoyue_normal_modern",
+      "right": "laobanniang_normal",
+      "text": "这件红衣……颜色好浓，像朱砂一样。",
+      "next": "boss_offer"
+    },
+    {
+      "id": "boss_offer",
+      "type": "dialogue",
+      "speaker": "老板娘",
+      "activeSide": "right",
+      "left": "xiaoyue_normal_modern",
+      "right": "laobanniang_normal",
+      "text": "姑娘眼光真好。朱砂镇的旧衣，认人。它若认了你，旁的就都不合身了。",
+      "next": "choice_hanfu"
+    },
+    {
+      "id": "choice_hanfu",
+      "type": "choice",
+      "speaker": "小月",
+      "left": "xiaoyue_normal_modern",
+      "right": "laobanniang_normal",
+      "prompt": "老板娘把朱砂凤凰衣推到小月面前。",
+      "autosave": true,
+      "options": [
+        {
+          "id": "wear_cinnabar",
+          "icon": "📜",
+          "label": "坚持穿朱砂凤凰衣",
+          "consequence": "推进主线",
+          "next": "wear_cinnabar"
+        },
+        {
+          "id": "pink_skirt",
+          "icon": "📜",
+          "label": "换粉色襦裙",
+          "consequence": "推进，但老板娘强行赠送朱砂凤凰发簪",
+          "flag": "gotCinnabarHairpin",
+          "next": "pink_forced"
+        },
+        {
+          "id": "leave_shop",
+          "icon": "🚪",
+          "label": "离开汉服馆",
+          "consequence": "逃离支线",
+          "flag": "escapeBranch",
+          "next": "leave_branch"
+        }
+      ]
+    },
+    {
+      "id": "wear_cinnabar",
+      "type": "dialogue",
+      "speaker": "林雅",
+      "activeSide": "right",
+      "left": "xiaoyue_normal_modern",
+      "right": "linya_surprised_modern",
+      "text": "你确定？这衣服漂亮是漂亮，可我总觉得它像在等你。",
+      "next": "to_dressing"
+    },
+    {
+      "id": "pink_forced",
+      "type": "dialogue",
+      "speaker": "老板娘",
+      "activeSide": "right",
+      "left": "xiaoyue_normal_modern",
+      "right": "laobanniang_normal",
+      "text": "粉色也好。只是这支朱砂凤凰簪，姑娘一定得戴着，压衣气。",
+      "next": "to_dressing"
+    },
+    {
+      "id": "leave_branch",
+      "type": "dialogue",
+      "speaker": "老板娘",
+      "activeSide": "right",
+      "left": "xiaoyue_normal_modern",
+      "right": "laobanniang_creepy",
+      "text": "现在走？姑娘，酉时之前，镇门可不认生人。",
+      "next": "to_dressing"
+    },
+    {
+      "id": "to_dressing",
+      "type": "dialogue",
+      "speaker": "小月",
+      "activeSide": "left",
+      "left": "xiaoyue_normal_modern",
+      "right": "laobanniang_normal",
+      "text": "我进去换一下。林雅，你就在外面等我。",
+      "next": "scene5_dressingroom:start"
+    }
+  ]
+}
