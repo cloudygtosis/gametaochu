@@ -2,77 +2,175 @@
   "id": "scene5_dressingroom",
   "title": "更衣室",
   "background": "scene5_dressingroom",
+  "bgm": "bgm_dressing",
   "nodes": [
     {
-      "id": "start",
+      "id": "enter_cinnabar",
+      "type": "dialogue",
+      "speaker": "小月",
+      "activeSide": "left",
+      "left": "xiaoyue_normal_modern",
+      "text": "（朱砂衣的丝面贴上肩膀，凉，又像有体温）……明明是冷的，怎么贴一会儿就热了？",
+      "autosave": true,
+      "next": "step1_buttons"
+    },
+    {
+      "id": "enter_pink",
+      "type": "dialogue",
+      "speaker": "小月",
+      "activeSide": "left",
+      "left": "xiaoyue_normal_modern",
+      "text": "（粉色襦裙倒是软软的——可那支朱砂簪一插进发里，头皮就跟着一紧）……簪子怎么这么沉。",
+      "autosave": true,
+      "next": "step1_buttons"
+    },
+    {
+      "id": "enter_white",
+      "type": "dialogue",
+      "speaker": "小月",
+      "activeSide": "left",
+      "left": "xiaoyue_normal_modern",
+      "text": "（素白衣穿在身上，反而觉得镜前那块布帘后有一道目光）……我就是来拍个照而已。",
+      "autosave": true,
+      "next": "step1_buttons_white"
+    },
+    {
+      "id": "step1_buttons",
       "type": "dialogue",
       "speaker": "小月",
       "activeSide": "left",
       "left": "xiaoyue_scared_guifei",
-      "text": "奇怪……盘扣怎么突然扣得这么紧？刚才明明不是这样的。",
-      "autosave": true,
-      "next": "mirror_first"
+      "text": "盘扣……奇怪，刚才明明扣到第三颗就停了，怎么自己一颗一颗合上去？",
+      "next": "step1_choice"
     },
     {
-      "id": "mirror_first",
+      "id": "step1_buttons_white",
+      "type": "dialogue",
+      "speaker": "小月",
+      "activeSide": "left",
+      "left": "xiaoyue_normal_modern",
+      "text": "（素白上衣的系带松松垮垮——可不知什么时候，腰间多了一根细细的红绳，结打得规规矩矩）",
+      "next": "step1_choice"
+    },
+    {
+      "id": "step1_choice",
+      "type": "choice",
+      "speaker": "小月",
+      "left": "xiaoyue_scared_guifei",
+      "prompt": "更衣室里只剩自己的呼吸。镜子蒙着一层薄薄水汽。",
+      "options": [
+        {
+          "id": "fight_button",
+          "icon": "✊",
+          "label": "用力把扣子全解开",
+          "consequence": "抵抗",
+          "flag": "resisted1",
+          "next": "step1_resist"
+        },
+        {
+          "id": "observe_mirror",
+          "icon": "👁",
+          "label": "盯着镜子看",
+          "consequence": "顺势观察",
+          "next": "step2_mirror"
+        },
+        {
+          "id": "call_linya",
+          "icon": "🗣",
+          "label": "隔着门叫林雅",
+          "consequence": "找人",
+          "next": "step1_call"
+        }
+      ]
+    },
+    {
+      "id": "step1_resist",
+      "type": "dialogue",
+      "speaker": "小月",
+      "activeSide": "left",
+      "left": "xiaoyue_scared_guifei",
+      "text": "（指甲掐着布料，扣子一颗颗弹开——可指尖一松，那扣子又像被磁石吸回去，自己合上）……不可能。",
+      "next": "step2_mirror"
+    },
+    {
+      "id": "step1_call",
+      "type": "dialogue",
+      "speaker": "小月",
+      "activeSide": "left",
+      "left": "xiaoyue_scared_guifei",
+      "text": "林雅！林雅你听得到吗——你别走开，就站在门外别走。",
+      "next": "step1_call_silence"
+    },
+    {
+      "id": "step1_call_silence",
+      "type": "dialogue",
+      "speaker": "旁白",
+      "left": "xiaoyue_scared_guifei",
+      "text": "门外没有应声。连刚才隐约能听见的檀香爆裂声，也安静了下来。",
+      "flag": "linyaSilent",
+      "next": "step2_mirror"
+    },
+    {
+      "id": "step2_mirror",
       "type": "effect",
       "effect": "mirrorPulse",
       "speaker": "小月",
       "activeSide": "left",
       "left": "xiaoyue_scared_guifei",
-      "text": "镜子里，红衣女子的嘴角比小月先弯了起来。",
-      "next": "choice_mirror"
+      "text": "（镜子里的自己——嘴角，比她先弯起来了一瞬）……",
+      "next": "step2_choice"
     },
     {
-      "id": "choice_mirror",
+      "id": "step2_choice",
       "type": "choice",
       "speaker": "小月",
       "left": "xiaoyue_scared_guifei",
-      "prompt": "镜中出现一个穿朱砂衣的古代女子，正隔着铜镜看她。",
+      "prompt": "镜中那个穿朱砂衣的女子，正隔着铜镜，看着她。",
       "autosave": true,
       "options": [
         {
-          "id": "call_linya",
-          "icon": "📜",
-          "label": "大喊闺蜜",
-          "consequence": "无人回应，气氛升级",
-          "next": "call_linya"
+          "id": "deny_illusion",
+          "icon": "🧘",
+          "label": "闭眼默念“这是幻觉”",
+          "consequence": "强行心理防御",
+          "flag": "sawMirrorTruth",
+          "next": "step2_hidden_line"
         },
         {
-          "id": "deny_illusion",
-          "icon": "🔍",
-          "label": "闭眼默念“这是幻觉”",
-          "consequence": "触发隐藏台词",
-          "flag": "sawMirrorTruth",
-          "next": "hidden_mirror_line"
+          "id": "talk_back",
+          "icon": "💬",
+          "label": "“你是谁。”",
+          "consequence": "直接对话",
+          "flag": "talkedToMirror",
+          "next": "step2_talk_back"
         },
         {
           "id": "tear_clothes",
           "icon": "❌",
-          "label": "用力扯衣服",
-          "consequence": "死亡结局",
+          "label": "扯下衣服扔出去",
+          "consequence": "撕破朱砂",
           "death": true,
           "next": "death_cinnabar_skin"
         }
       ]
     },
     {
-      "id": "call_linya",
-      "type": "dialogue",
-      "speaker": "小月",
-      "activeSide": "left",
-      "left": "xiaoyue_scared_guifei",
-      "text": "林雅！你听得到吗？外面有人吗？",
-      "next": "no_answer"
-    },
-    {
-      "id": "hidden_mirror_line",
+      "id": "step2_hidden_line",
       "type": "dialogue",
       "speaker": "镜中女子",
       "activeSide": "left",
       "left": "xiaoyue_scared_guifei",
-      "text": "不是幻觉。你只是终于看见了自己该穿的衣裳。",
-      "next": "no_answer"
+      "text": "（声音轻得像耳鸣）……不是幻觉。你只是终于看见了——自己该穿的衣裳。",
+      "next": "step3_red_skin"
+    },
+    {
+      "id": "step2_talk_back",
+      "type": "dialogue",
+      "speaker": "镜中女子",
+      "activeSide": "left",
+      "left": "xiaoyue_scared_guifei",
+      "text": "（不动嘴唇，声音从镜面里渗出来）……我是先来的那一个。你才是借这身躯还魂的那一个。",
+      "next": "step3_red_skin"
     },
     {
       "id": "death_cinnabar_skin",
@@ -80,23 +178,137 @@
       "title": "死亡结局：朱砂入骨",
       "left": "xiaoyue_possessed_guifei",
       "text": "小月猛地扯开盘扣，红色却从线脚里渗出，像活物一样钻进皮肤。她倒在镜前，铜镜里的人仍站着。",
-      "retryChoice": "scene5_dressingroom:choice_mirror"
+      "retryChoice": "scene5_dressingroom:step2_choice"
     },
     {
-      "id": "no_answer",
+      "id": "step3_red_skin",
+      "type": "effect",
+      "effect": "redPulse",
+      "speaker": "小月",
+      "activeSide": "left",
+      "left": "xiaoyue_scared_guifei",
+      "text": "（指尖一阵刺痒——低头一看，指甲缝里渗出几丝细红，像有根线，要把皮肤一寸寸缝起来）",
+      "next": "step3_choice"
+    },
+    {
+      "id": "step3_choice",
+      "type": "choice",
+      "speaker": "小月",
+      "left": "xiaoyue_scared_guifei",
+      "prompt": "镜中的女子伸出手，指尖也在渗红——只是她在笑。",
+      "options": [
+        {
+          "id": "bite_finger",
+          "icon": "🩸",
+          "label": "咬破自己的舌尖保持清醒",
+          "consequence": "用痛保住意识",
+          "flag": "bitTongue",
+          "next": "step3_bite"
+        },
+        {
+          "id": "touch_mirror",
+          "icon": "🪞",
+          "label": "把手贴上镜面",
+          "consequence": "顺势贴近镜子",
+          "flag": "touchedMirror",
+          "next": "step3_touch"
+        },
+        {
+          "id": "smash_mirror",
+          "icon": "💥",
+          "label": "操起木凳砸镜子",
+          "consequence": "破镜",
+          "next": "step3_smash"
+        }
+      ]
+    },
+    {
+      "id": "step3_bite",
       "type": "dialogue",
+      "speaker": "小月",
+      "activeSide": "left",
+      "left": "xiaoyue_scared_guifei",
+      "text": "（牙关一咬，腥甜涌上来——眼前那个穿朱砂衣的女子，第一次皱起了眉）",
+      "next": "step4_decide"
+    },
+    {
+      "id": "step3_touch",
+      "type": "dialogue",
+      "speaker": "镜中女子",
+      "activeSide": "left",
+      "left": "xiaoyue_scared_guifei",
+      "text": "（指尖隔着镜面对上，凉意从指甲一直钻到心口）……乖。再走一步，就回家了。",
+      "next": "step4_decide"
+    },
+    {
+      "id": "step3_smash",
+      "type": "effect",
+      "effect": "shake",
       "speaker": "旁白",
       "left": "xiaoyue_scared_guifei",
-      "text": "门外没有林雅的声音。连街上的风声也被什么东西堵住了。",
-      "next": "crossing"
+      "text": "凳腿砸下去，铜镜没碎——反倒像砸进了一汪深水。涟漪从中心荡开，镜里的女子向她伸出了两只手。",
+      "flag": "smashedMirror",
+      "next": "step4_decide"
     },
     {
-      "id": "crossing",
+      "id": "step4_decide",
+      "type": "choice",
+      "speaker": "小月",
+      "left": "xiaoyue_scared_guifei",
+      "prompt": "门外终于传来林雅敲门的声音——只是那声音也开始走调。",
+      "autosave": true,
+      "options": [
+        {
+          "id": "answer_self",
+          "icon": "🗣",
+          "label": "“林雅，听我说——我是小月！”",
+          "consequence": "拼命守住自己的名字",
+          "flag": "keptSelf",
+          "next": "crossing_resist"
+        },
+        {
+          "id": "answer_yes",
+          "icon": "📿",
+          "label": "“……我马上出来。”",
+          "consequence": "随口应声",
+          "next": "crossing_surrender"
+        },
+        {
+          "id": "run_door",
+          "icon": "🚪",
+          "label": "拉开门冲出去",
+          "consequence": "撞开更衣室门",
+          "next": "crossing_run"
+        }
+      ]
+    },
+    {
+      "id": "crossing_resist",
+      "type": "effect",
+      "effect": "crossing",
+      "speaker": "小月",
+      "activeSide": "left",
+      "left": "xiaoyue_scared_guifei",
+      "text": "（咬破的舌尖还在跳——“我是小月”这三个字，像一根钉，硬生生钉在脑子里。铜镜碎了，但她记得自己叫什么）",
+      "flag": "keptSelf",
+      "next": "scene6_after_crossing:start"
+    },
+    {
+      "id": "crossing_surrender",
       "type": "effect",
       "effect": "crossing",
       "speaker": "旁白",
       "left": "xiaoyue_possessed_guifei",
-      "text": "铜镜碎裂前，小月看见自己的影子被朱砂红一点点填满。",
+      "text": "“马上出来”三个字，从喉咙里出来的时候，已经不是小月的声音。铜镜碎前，影子被朱砂红一点点填满。",
+      "next": "scene6_after_crossing:start"
+    },
+    {
+      "id": "crossing_run",
+      "type": "effect",
+      "effect": "crossing",
+      "speaker": "旁白",
+      "left": "xiaoyue_scared_guifei",
+      "text": "她去拉门把手——指尖刚碰到铜环，整面镜子从背后涌出红光，把她和门一起卷了进去。",
       "next": "scene6_after_crossing:start"
     }
   ]

@@ -9,7 +9,8 @@ export const assetManifest = {
     intro: "/assets/video/piantou.mp4",
     poster: "/assets/video/piantou_poster.jpg",
     cutscene: "/assets/video/cg1.mp4",
-    cutscenePoster: "/assets/video/CG_poster.jpg"
+    cutscenePoster: "/assets/video/CG_poster.jpg",
+    finale: "/assets/video/final1.mp4"
   },
   ui: {
     startButton: "/assets/ui/start_button.png"

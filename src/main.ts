@@ -3,6 +3,7 @@ import "./styles/game.css";
 import { BootScene } from "./scenes/BootScene";
 import { CutsceneScene } from "./scenes/CutsceneScene";
 import { ExploreScene } from "./scenes/ExploreScene";
+import { FinalScene } from "./scenes/FinalScene";
 import { StartScene } from "./scenes/StartScene";
 import { VnScene } from "./scenes/VnScene";
 
@@ -23,5 +24,5 @@ new Phaser.Game({
       debug: false
     }
   },
-  scene: [BootScene, StartScene, CutsceneScene, ExploreScene, VnScene]
+  scene: [BootScene, StartScene, CutsceneScene, ExploreScene, VnScene, FinalScene]
 });

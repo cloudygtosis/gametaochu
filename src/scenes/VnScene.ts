@@ -4,10 +4,16 @@ import prologueRaw from "../data/scenes/prologue_arrival.json";
 import scene4Raw from "../data/scenes/scene4_hanfu_interior.json";
 import scene5Raw from "../data/scenes/scene5_dressingroom.json";
 import scene6Raw from "../data/scenes/scene6_after_crossing.json";
+import { audioManager } from "../systems/audioManager";
+import { dialogueLog } from "../systems/dialogueLog";
+import { gameState } from "../systems/gameState";
 import { VnRuntime } from "../systems/vnRuntime";
 import type { ChoiceOption, RuntimeNode, SceneScript } from "../systems/vnTypes";
 
 const scripts = [prologueRaw, scene4Raw, scene5Raw, scene6Raw] as unknown as SceneScript[];
+
+const TYPEWRITER_CPS = 38;
+const AUTO_DELAY_MS = 1600;
 
 interface VnElements {
   root: HTMLElement;
@@ -23,6 +29,12 @@ interface VnElements {
   confirm: HTMLButtonElement;
   cancel: HTMLButtonElement;
   menuButton: HTMLButtonElement;
+  skipButton: HTMLButtonElement;
+  autoButton: HTMLButtonElement;
+  logButton: HTMLButtonElement;
+  muteButton: HTMLButtonElement;
+  logPanel: HTMLElement;
+  logCloseButton: HTMLButtonElement;
 }
 
 export class VnScene extends Phaser.Scene {
@@ -31,10 +43,16 @@ export class VnScene extends Phaser.Scene {
   private redOverlay?: Phaser.GameObjects.Rectangle;
   private currentBackground = "";
   private elements!: VnElements;
-  private savedNodes = new Set<string>();
   private lastSceneId = "";
   private playedEffects = new Set<string>();
   private exitScene?: string;
+  private typingTimer?: Phaser.Time.TimerEvent;
+  private autoTimer?: Phaser.Time.TimerEvent;
+  private isTyping = false;
+  private pendingText = "";
+  private autoMode = false;
+  private skipMode = false;
+  private keyHandlers: { event: string; fn: () => void }[] = [];
 
   constructor() {
     super("VnScene");
@@ -43,16 +61,41 @@ export class VnScene extends Phaser.Scene {
   create(): void {
     const data = (this.scene.settings.data ?? {}) as { startSceneId?: string; exitScene?: string };
     this.exitScene = data.exitScene;
-    this.runtime = new VnRuntime(scripts, data.startSceneId ?? "prologue_arrival");
+    this.runtime = new VnRuntime(scripts, data.startSceneId ?? "prologue_arrival", { ...gameState.flags });
     this.redOverlay = this.add.rectangle(360, 640, 720, 1280, 0x8b0018, 0).setDepth(5);
     this.elements = this.createOverlay();
-    this.input.keyboard?.on("keydown-ENTER", () => this.handleConfirm());
-    this.input.keyboard?.on("keydown-SPACE", () => this.handleConfirm());
-    this.input.keyboard?.on("keydown-ESC", () => this.toggleMenu());
-    this.input.keyboard?.on("keydown-ONE", () => this.pickChoiceByIndex(0));
-    this.input.keyboard?.on("keydown-TWO", () => this.pickChoiceByIndex(1));
-    this.input.keyboard?.on("keydown-THREE", () => this.pickChoiceByIndex(2));
+    this.bindKeyboard();
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.teardown());
     this.renderNode(this.runtime.current);
+  }
+
+  private bindKeyboard(): void {
+    const map: { event: string; fn: () => void }[] = [
+      { event: "keydown-ENTER", fn: () => this.handleConfirm() },
+      { event: "keydown-SPACE", fn: () => this.handleConfirm() },
+      { event: "keydown-ESC", fn: () => this.toggleMenu() },
+      { event: "keydown-ONE", fn: () => this.pickChoiceByIndex(0) },
+      { event: "keydown-TWO", fn: () => this.pickChoiceByIndex(1) },
+      { event: "keydown-THREE", fn: () => this.pickChoiceByIndex(2) },
+      { event: "keydown-FOUR", fn: () => this.pickChoiceByIndex(3) },
+      { event: "keydown-A", fn: () => this.toggleAuto() },
+      { event: "keydown-S", fn: () => this.toggleSkip() },
+      { event: "keydown-L", fn: () => this.toggleLog() },
+      { event: "keydown-M", fn: () => this.toggleMute() }
+    ];
+    for (const { event, fn } of map) {
+      this.input.keyboard?.on(event, fn);
+      this.keyHandlers.push({ event, fn });
+    }
+  }
+
+  private teardown(): void {
+    this.typingTimer?.remove(false);
+    this.autoTimer?.remove(false);
+    for (const { event, fn } of this.keyHandlers) this.input.keyboard?.off(event, fn);
+    this.keyHandlers = [];
+    // Persist flags so explore/other scenes see the updated state.
+    for (const [k, v] of Object.entries(this.runtime.flags)) gameState.setFlag(k, v);
   }
 
   private createOverlay(): VnElements {
@@ -61,7 +104,13 @@ export class VnScene extends Phaser.Scene {
     root.innerHTML = `
       <div class="topbar">
         <span class="scene-title" data-testid="scene-title"></span>
-        <button class="icon-button menu-toggle" type="button" aria-label="菜单" data-testid="menu-toggle">☰</button>
+        <div class="vn-topbar-buttons">
+          <button class="icon-button vn-skip" type="button" aria-label="跳过已读">⏩</button>
+          <button class="icon-button vn-auto" type="button" aria-label="自动播放">▶</button>
+          <button class="icon-button vn-log" type="button" aria-label="对话回看">🕮</button>
+          <button class="icon-button vn-mute" type="button" aria-label="静音">🔊</button>
+          <button class="icon-button menu-toggle" type="button" aria-label="菜单">☰</button>
+        </div>
       </div>
       <img class="portrait portrait-left" alt="" data-testid="portrait-left" />
       <img class="portrait portrait-right" alt="" data-testid="portrait-right" />
@@ -79,6 +128,13 @@ export class VnScene extends Phaser.Scene {
         <button type="button" data-slot-load="1">读 1</button>
         <button type="button" data-slot-load="2">读 2</button>
         <button type="button" data-slot-load="3">读 3</button>
+      </aside>
+      <aside class="log-panel hidden">
+        <div class="log-header">
+          <span>对话回看</span>
+          <button type="button" class="log-close">×</button>
+        </div>
+        <div class="log-body"></div>
       </aside>
       <div class="mobile-stick" aria-hidden="true"><span></span></div>
       <nav class="mobile-actions" aria-label="操作按钮">
@@ -101,7 +157,13 @@ export class VnScene extends Phaser.Scene {
       menu: root.querySelector(".slot-menu")!,
       confirm: root.querySelector(".confirm-action")!,
       cancel: root.querySelector(".cancel-action")!,
-      menuButton: root.querySelector(".menu-action")!
+      menuButton: root.querySelector(".menu-action")!,
+      skipButton: root.querySelector(".vn-skip")!,
+      autoButton: root.querySelector(".vn-auto")!,
+      logButton: root.querySelector(".vn-log")!,
+      muteButton: root.querySelector(".vn-mute")!,
+      logPanel: root.querySelector(".log-panel")!,
+      logCloseButton: root.querySelector(".log-close")!
     };
 
     elements.dialogue.addEventListener("click", (event) => {
@@ -113,6 +175,11 @@ export class VnScene extends Phaser.Scene {
     elements.cancel.addEventListener("click", () => this.elements.menu.classList.add("hidden"));
     elements.menuButton.addEventListener("click", () => this.toggleMenu());
     root.querySelector(".menu-toggle")?.addEventListener("click", () => this.toggleMenu());
+    elements.skipButton.addEventListener("click", () => this.toggleSkip());
+    elements.autoButton.addEventListener("click", () => this.toggleAuto());
+    elements.logButton.addEventListener("click", () => this.toggleLog());
+    elements.muteButton.addEventListener("click", () => this.toggleMute());
+    elements.logCloseButton.addEventListener("click", () => this.toggleLog(false));
 
     elements.menu.addEventListener("click", (event) => {
       const target = event.target;
@@ -123,10 +190,13 @@ export class VnScene extends Phaser.Scene {
       if (loadSlot) void this.loadSave(Number(loadSlot));
     });
 
+    elements.muteButton.textContent = audioManager.muted ? "🔇" : "🔊";
+    elements.muteButton.classList.toggle("active", audioManager.muted);
     return elements;
   }
 
   private renderNode(node: RuntimeNode): void {
+    this.autoTimer?.remove(false);
     this.setBackground(node);
     this.elements.sceneTitle.textContent = node.sceneTitle;
     document.body.dataset.mood = node.resolvedBackground === "scene6_mainstreet_horror" ? "horror" : "normal";
@@ -134,21 +204,32 @@ export class VnScene extends Phaser.Scene {
     this.setPortrait(this.elements.rightPortrait, node.right);
     this.setActivePortrait(node.activeSide);
 
+    if (node.bgm) audioManager.playBgm(node.bgm);
+    if (node.sfx) audioManager.playSfx(node.sfx);
+
     this.elements.choices.innerHTML = "";
-    this.elements.choices.classList.toggle("visible", node.type === "choice");
+    const showChoicesPanel = node.type === "choice" || node.type === "death";
+    this.elements.choices.classList.toggle("visible", showChoicesPanel);
     this.elements.dialogue.classList.toggle("death", node.type === "death");
     this.elements.dialogue.classList.toggle("ending", node.type === "ending");
-    this.elements.speaker.textContent = node.title ?? node.speaker ?? "旁白";
-    this.elements.text.textContent = node.prompt ?? node.text ?? "";
+
+    let heading = node.title ?? node.speaker ?? "旁白";
+    if (node.type === "death") heading = `GAME OVER · ${node.title ?? "死亡结局"}`;
+    this.elements.speaker.textContent = heading;
+
+    let fullText = node.prompt ?? node.text ?? "";
+    if (node.type === "death") fullText = `${fullText}\n\n——是否重来？`;
+    this.startTypewriter(fullText);
+    dialogueLog.push({ speaker: heading, text: fullText });
 
     if (node.type === "choice" && node.options) {
-      this.renderChoices(node, node.options);
+      this.renderChoices(node, this.runtime.visibleChoices(node));
       this.elements.continueButton.classList.add("hidden");
     } else if (node.type === "death") {
-      this.elements.continueButton.textContent = "重新选择";
-      this.elements.continueButton.classList.remove("hidden");
+      this.renderDeathActions();
+      this.elements.continueButton.classList.add("hidden");
     } else if (node.type === "ending") {
-      this.elements.continueButton.textContent = this.exitScene ? "开始探索" : "留在此处";
+      this.elements.continueButton.textContent = this.endingButtonLabel(node);
       this.elements.continueButton.classList.remove("hidden");
     } else {
       this.elements.continueButton.textContent = "确认";
@@ -160,14 +241,112 @@ export class VnScene extends Phaser.Scene {
       this.runEffect(node.effect);
     }
 
+    const wasRead = gameState.isRead(node.globalId);
+    gameState.markRead(node.globalId);
+
     if (node.autosave || node.sceneId !== this.lastSceneId) {
       this.lastSceneId = node.sceneId;
       void this.save(0);
     }
+
+    if (this.skipMode && wasRead && node.type !== "choice" && node.type !== "death" && node.type !== "ending") {
+      this.finishTypewriter();
+      this.autoTimer = this.time.delayedCall(160, () => this.handleConfirm());
+    } else if (this.autoMode && node.type !== "choice") {
+      this.scheduleAutoAdvance(fullText);
+    }
   }
 
-  private renderChoices(node: RuntimeNode, options: ChoiceOption[]): void {
-    options.forEach((option) => {
+  private startTypewriter(text: string): void {
+    this.typingTimer?.remove(false);
+    this.pendingText = text;
+    this.isTyping = true;
+    this.elements.text.textContent = "";
+    let i = 0;
+    const stepMs = Math.max(8, Math.floor(1000 / TYPEWRITER_CPS));
+    this.typingTimer = this.time.addEvent({
+      delay: stepMs,
+      repeat: text.length - 1,
+      callback: () => {
+        i += 1;
+        this.elements.text.textContent = text.slice(0, i);
+        if (i >= text.length) this.isTyping = false;
+      }
+    });
+  }
+
+  private finishTypewriter(): void {
+    this.typingTimer?.remove(false);
+    this.elements.text.textContent = this.pendingText;
+    this.isTyping = false;
+  }
+
+  private scheduleAutoAdvance(text: string): void {
+    const stepMs = Math.max(8, Math.floor(1000 / TYPEWRITER_CPS));
+    const typingMs = text.length * stepMs;
+    this.autoTimer = this.time.delayedCall(typingMs + AUTO_DELAY_MS, () => {
+      if (!this.autoMode) return;
+      const node = this.runtime.current;
+      if (node.type === "choice") return;
+      this.handleConfirm();
+    });
+  }
+
+  private renderDeathActions(): void {
+    const retryButton = document.createElement("button");
+    retryButton.type = "button";
+    retryButton.className = "choice-button danger";
+    retryButton.innerHTML = `
+      <span class="choice-icon">↻</span>
+      <span class="choice-copy">
+        <span class="choice-label">重新选择</span>
+        <span class="choice-consequence">回到上一个分歧点</span>
+      </span>
+    `;
+    retryButton.addEventListener("click", () => this.renderNode(this.runtime.retryChoice()));
+    this.elements.choices.append(retryButton);
+
+    const titleButton = document.createElement("button");
+    titleButton.type = "button";
+    titleButton.className = "choice-button";
+    titleButton.innerHTML = `
+      <span class="choice-icon">⌂</span>
+      <span class="choice-copy">
+        <span class="choice-label">返回标题</span>
+        <span class="choice-consequence">回到开始界面，重头再来</span>
+      </span>
+    `;
+    titleButton.addEventListener("click", () => this.returnToTitle());
+    this.elements.choices.append(titleButton);
+  }
+
+  private endingButtonLabel(node: RuntimeNode): string {
+    if (node.sceneId === "scene6_after_crossing") return "进入终章 CG";
+    if (this.exitScene) return "开始探索";
+    return "继续";
+  }
+
+  private handleEndingAdvance(node: RuntimeNode): void {
+    if (node.sceneId === "scene6_after_crossing") {
+      // Persist flags so any future scene can read them, then play the finale cutscene.
+      for (const [k, v] of Object.entries(this.runtime.flags)) gameState.setFlag(k, v);
+      this.scene.start("FinalScene");
+      return;
+    }
+    if (this.exitScene) this.scene.start(this.exitScene);
+  }
+
+  private returnToTitle(): void {
+    gameState.clues.clear();
+    gameState.flags = {};
+    gameState.readNodes.clear();
+    gameState.npcTalkCount = {};
+    dialogueLog.clear();
+    this.scene.start("StartScene");
+  }
+
+  private renderChoices(_node: RuntimeNode, options: ChoiceOption[]): void {
+    options.forEach((option, idx) => {
       const button = document.createElement("button");
       button.type = "button";
       button.className = `choice-button ${option.death ? "danger" : ""}`;
@@ -175,11 +354,11 @@ export class VnScene extends Phaser.Scene {
       button.innerHTML = `
         <span class="choice-icon">${option.icon}</span>
         <span class="choice-copy">
-          <span class="choice-label">${option.label}</span>
+          <span class="choice-label">${idx + 1}. ${option.label}</span>
           <span class="choice-consequence">${option.consequence}</span>
         </span>
       `;
-      button.addEventListener("click", () => this.choose(node, option));
+      button.addEventListener("click", () => this.choose(option));
       this.elements.choices.append(button);
     });
   }
@@ -215,14 +394,20 @@ export class VnScene extends Phaser.Scene {
   }
 
   private handleConfirm(): void {
+    audioManager.unlock();
+    if (this.isTyping) {
+      this.finishTypewriter();
+      return;
+    }
     const node = this.runtime.current;
     if (node.type === "choice") return;
     if (node.type === "death") {
+      // Confirm key is wired to "retry" by default; the explicit death actions handle this too.
       this.renderNode(this.runtime.retryChoice());
       return;
     }
     if (node.type === "ending") {
-      if (this.exitScene) this.scene.start(this.exitScene);
+      this.handleEndingAdvance(node);
       return;
     }
     this.renderNode(this.runtime.advance());
@@ -230,16 +415,19 @@ export class VnScene extends Phaser.Scene {
 
   private pickChoiceByIndex(index: number): void {
     const node = this.runtime.current;
-    if (node.type !== "choice" || !node.options?.[index]) return;
-    this.choose(node, node.options[index]);
+    if (node.type !== "choice") return;
+    const visible = this.runtime.visibleChoices(node);
+    if (!visible[index]) return;
+    this.choose(visible[index]);
   }
 
-  private choose(node: RuntimeNode, option: ChoiceOption): void {
+  private choose(option: ChoiceOption): void {
+    const node = this.runtime.current;
     void this.logChoice(node, option);
     this.renderNode(this.runtime.choose(option));
   }
 
-  private runEffect(effect: "mirrorPulse" | "crossing"): void {
+  private runEffect(effect: NonNullable<RuntimeNode["effect"]>): void {
     if (!this.redOverlay) return;
     if (effect === "mirrorPulse") {
       this.cameras.main.shake(260, 0.004);
@@ -252,26 +440,96 @@ export class VnScene extends Phaser.Scene {
       });
       return;
     }
-    this.cameras.main.flash(900, 128, 0, 24);
-    this.cameras.main.shake(720, 0.008);
-    this.tweens.add({
-      targets: this.redOverlay,
-      alpha: { from: 0.1, to: 0.55 },
-      duration: 520,
-      yoyo: true,
-      repeat: 1
-    });
+    if (effect === "redPulse") {
+      this.tweens.add({
+        targets: this.redOverlay,
+        alpha: { from: 0, to: 0.45 },
+        duration: 380,
+        yoyo: true,
+        repeat: 1
+      });
+      return;
+    }
+    if (effect === "shake") {
+      this.cameras.main.shake(420, 0.006);
+      return;
+    }
+    if (effect === "flashWhite") {
+      this.cameras.main.flash(380, 255, 246, 230);
+      return;
+    }
+    if (effect === "fadeBlack") {
+      this.cameras.main.fade(620, 0, 0, 0, false);
+      return;
+    }
+    if (effect === "crossing") {
+      this.cameras.main.flash(900, 128, 0, 24);
+      this.cameras.main.shake(720, 0.008);
+      this.tweens.add({
+        targets: this.redOverlay,
+        alpha: { from: 0.1, to: 0.55 },
+        duration: 520,
+        yoyo: true,
+        repeat: 1
+      });
+    }
   }
 
   private toggleMenu(): void {
     this.elements.menu.classList.toggle("hidden");
   }
 
+  private toggleAuto(): void {
+    this.autoMode = !this.autoMode;
+    if (this.autoMode) this.skipMode = false;
+    this.elements.autoButton.classList.toggle("active", this.autoMode);
+    this.elements.skipButton.classList.toggle("active", this.skipMode);
+    if (this.autoMode && !this.isTyping) {
+      this.scheduleAutoAdvance(this.pendingText);
+    } else {
+      this.autoTimer?.remove(false);
+    }
+  }
+
+  private toggleSkip(): void {
+    this.skipMode = !this.skipMode;
+    if (this.skipMode) this.autoMode = false;
+    this.elements.skipButton.classList.toggle("active", this.skipMode);
+    this.elements.autoButton.classList.toggle("active", this.autoMode);
+    if (this.skipMode) {
+      // Kick the skip loop by triggering an immediate confirm if the current node is read.
+      const node = this.runtime.current;
+      if (gameState.isRead(node.globalId) && node.type !== "choice") {
+        this.handleConfirm();
+      }
+    }
+  }
+
+  private toggleLog(force?: boolean): void {
+    const willOpen = typeof force === "boolean" ? force : this.elements.logPanel.classList.contains("hidden");
+    this.elements.logPanel.classList.toggle("hidden", !willOpen);
+    if (willOpen) {
+      const body = this.elements.logPanel.querySelector(".log-body")!;
+      body.innerHTML = dialogueLog
+        .all()
+        .map((entry) => `<div class="log-entry"><strong>${entry.speaker}</strong><span>${entry.text}</span></div>`)
+        .join("");
+      body.scrollTop = body.scrollHeight;
+    }
+  }
+
+  private toggleMute(): void {
+    audioManager.toggleMuted();
+    this.refreshMuteButton();
+  }
+
+  private refreshMuteButton(): void {
+    this.elements.muteButton.textContent = audioManager.muted ? "🔇" : "🔊";
+    this.elements.muteButton.classList.toggle("active", audioManager.muted);
+  }
+
   private async save(slot: number): Promise<void> {
     const node = this.runtime.current;
-    const cacheKey = `${slot}:${node.globalId}`;
-    if (slot === 0 && this.savedNodes.has(cacheKey)) return;
-    this.savedNodes.add(cacheKey);
     await postJson("/api/save", {
       slot,
       sceneId: node.globalId,
@@ -287,6 +545,11 @@ export class VnScene extends Phaser.Scene {
     const data = await response.json();
     if (!data.save?.sceneId) return;
     this.elements.menu.classList.add("hidden");
+    if (data.save.flags) {
+      for (const [k, v] of Object.entries(data.save.flags as Record<string, boolean | string | number>)) {
+        this.runtime.setFlag(k, v);
+      }
+    }
     this.renderNode(this.runtime.jump(data.save.sceneId));
   }
 

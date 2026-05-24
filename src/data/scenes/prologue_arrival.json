@@ -2,51 +2,180 @@
   "id": "prologue_arrival",
   "title": "毕业旅行",
   "background": "prologue_mountain_bus_arrival",
+  "bgm": "bgm_prologue",
   "nodes": [
     {
       "id": "start",
       "type": "dialogue",
       "speaker": "旁白",
-      "text": "大四最后一个春天，小月和林雅放弃了热门城市，决定找一处没人挤、适合拍汉服毕业照的古镇。",
-      "next": "linya_post"
+      "text": "山道弯过最后一道急转，绿皮中巴在牌坊前缓缓停下。引擎熄火的一瞬，山雀也安静下来。",
+      "next": "linya_phone"
     },
     {
-      "id": "linya_post",
+      "id": "linya_phone",
       "type": "dialogue",
       "speaker": "林雅",
       "activeSide": "right",
       "left": "xiaoyue_normal_modern",
       "right": "linya_normal_modern",
-      "text": "我刷到这个朱砂镇了，浙江山里，游客少，汉服馆还便宜。评论都说傍晚灯笼一亮，特别出片。",
-      "next": "bus_warning"
+      "text": "看，就是这里——朱砂镇。小红书上那个博主拍的就是这条石牌坊。她说傍晚灯笼一亮，朱砂红铺一地，简直绝杀。",
+      "next": "xiaoyue_first_look"
     },
     {
-      "id": "bus_warning",
+      "id": "xiaoyue_first_look",
+      "type": "dialogue",
+      "speaker": "小月",
+      "activeSide": "left",
+      "left": "xiaoyue_normal_modern",
+      "right": "linya_normal_modern",
+      "text": "嗯……是好看。可是评论区怎么全是“随缘游客少”这种好评？连一张差评都没有，反而有点奇怪。",
+      "next": "linya_brush"
+    },
+    {
+      "id": "linya_brush",
+      "type": "dialogue",
+      "speaker": "林雅",
+      "activeSide": "right",
+      "left": "xiaoyue_normal_modern",
+      "right": "linya_normal_modern",
+      "text": "你想多啦。小众景点本来就这样，越没人去越出片。来都来了，先下车呗？",
+      "next": "driver_warn"
+    },
+    {
+      "id": "driver_warn",
+      "type": "dialogue",
+      "speaker": "司机",
+      "left": "xiaoyue_normal_modern",
+      "right": "linya_normal_modern",
+      "text": "（沙哑、不抬头）……两位姑娘，到站了。拍照归拍照——酉时之前，最好出来。",
+      "next": "xiaoyue_press"
+    },
+    {
+      "id": "xiaoyue_press",
+      "type": "dialogue",
+      "speaker": "小月",
+      "activeSide": "left",
+      "left": "xiaoyue_normal_modern",
+      "right": "linya_surprised_modern",
+      "text": "酉时？师傅，您是说天黑之前吗？为什么是酉时？",
+      "next": "driver_silence"
+    },
+    {
+      "id": "driver_silence",
       "type": "dialogue",
       "speaker": "司机",
       "left": "xiaoyue_normal_modern",
       "right": "linya_surprised_modern",
-      "activeSide": "right",
-      "text": "到站了。你们两个姑娘拍照归拍照，酉时前最好出来。山里天黑得快，镇上也……不太留生人。",
-      "next": "xiaoyue_uneasy"
+      "text": "（顿了一下，像是吞下半句话）……镇上规矩。生人，过了酉时就不是生人了。下车吧。",
+      "next": "linya_giggle"
     },
     {
-      "id": "xiaoyue_uneasy",
+      "id": "linya_giggle",
       "type": "dialogue",
+      "speaker": "林雅",
+      "activeSide": "right",
+      "left": "xiaoyue_normal_modern",
+      "right": "linya_surprised_modern",
+      "text": "卧槽，这老爷子还玩气氛？是不是镇上请来的群演？小月，开机！我们这就是恐怖片女主出场镜头！",
+      "next": "approach_arch"
+    },
+    {
+      "id": "approach_arch",
+      "type": "dialogue",
+      "speaker": "旁白",
+      "text": "车门一关，柴油味散尽。石牌坊的影子被夕阳拉得很长，牌匾上四个金漆大字早已褪成暗红——朱砂遗镇。",
+      "next": "xiaoyue_red_lantern"
+    },
+    {
+      "id": "xiaoyue_red_lantern",
+      "type": "dialogue",
+      "speaker": "小月",
+      "activeSide": "left",
+      "left": "xiaoyue_normal_modern",
+      "right": "linya_normal_modern",
+      "text": "你看那排灯笼……还没天黑就先亮起来了。而且，是从镇里面一盏一盏亮过来的。",
+      "next": "linya_excited"
+    },
+    {
+      "id": "linya_excited",
+      "type": "dialogue",
+      "speaker": "林雅",
+      "activeSide": "right",
+      "left": "xiaoyue_normal_modern",
+      "right": "linya_normal_modern",
+      "text": "这才叫氛围！我手机都拍不完了。再发愣可就错过最好的光了——走，进去看看！",
+      "next": "choice_enter"
+    },
+    {
+      "id": "choice_enter",
+      "type": "choice",
       "speaker": "小月",
       "left": "xiaoyue_normal_modern",
       "right": "linya_normal_modern",
-      "activeSide": "left",
-      "text": "他说得像恐怖片开头一样。林雅，我们真的要进去吗？",
-      "next": "linya_push"
+      "prompt": "牌坊后面，雾气从石阶缝里慢慢漫上来。",
+      "autosave": true,
+      "options": [
+        {
+          "id": "enter_normal",
+          "icon": "🎒",
+          "label": "好，进去打卡",
+          "consequence": "和林雅一起进镇",
+          "next": "enter_resolved"
+        },
+        {
+          "id": "enter_cautious",
+          "icon": "🔍",
+          "label": "先在镇口多看几眼",
+          "consequence": "进镇前心里多了一根刺",
+          "flag": "xiaoyueAlert",
+          "next": "enter_resolved_cautious"
+        },
+        {
+          "id": "ask_driver_back",
+          "icon": "🚌",
+          "label": "回头问司机末班车几点",
+          "consequence": "记下最后一班离镇时间",
+          "flag": "knowsLastBus",
+          "next": "ask_driver_back"
+        }
+      ]
     },
     {
-      "id": "linya_push",
+      "id": "ask_driver_back",
+      "type": "dialogue",
+      "speaker": "司机",
+      "left": "xiaoyue_normal_modern",
+      "right": "linya_normal_modern",
+      "text": "（透过车窗）……末班车？酉时整，停在牌坊外。过了点，我开不开都一样——车进不去。",
+      "next": "enter_resolved_cautious"
+    },
+    {
+      "id": "enter_resolved",
+      "type": "dialogue",
+      "speaker": "林雅",
+      "activeSide": "right",
+      "left": "xiaoyue_normal_modern",
+      "right": "linya_normal_modern",
+      "text": "走啦走啦，先在主街转两圈找机位，等会儿光最好的时候我们去汉服馆挑衣服。",
+      "next": "enter_resolved_end"
+    },
+    {
+      "id": "enter_resolved_cautious",
+      "type": "dialogue",
+      "speaker": "小月",
+      "activeSide": "left",
+      "left": "xiaoyue_normal_modern",
+      "right": "linya_normal_modern",
+      "text": "好。不过我们说好，先在街上听听镇里人怎么说，再决定要不要换衣服。",
+      "next": "enter_resolved_end"
+    },
+    {
+      "id": "enter_resolved_end",
       "type": "ending",
       "title": "进入朱砂镇",
       "left": "xiaoyue_normal_modern",
       "right": "linya_normal_modern",
-      "text": "林雅晃了晃手机，说来都来了。雾气从牌坊后漫出来，石路尽头的红灯笼一盏接一盏亮起。"
+      "text": "雾从牌坊后漫出来，石路尽头的红灯笼，一盏接一盏亮起。"
     }
   ]
 }

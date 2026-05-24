@@ -1,5 +1,6 @@
 import Phaser from "phaser";
 import { assetManifest } from "../data/assetManifest";
+import { audioManager } from "../systems/audioManager";
 
 export class BootScene extends Phaser.Scene {
   constructor() {
@@ -19,6 +20,10 @@ export class BootScene extends Phaser.Scene {
   }
 
   create(): void {
+    // Audio track URLs are placeholders — drop real files into public/assets/audio/ and
+    // playback will kick in automatically. Until then, registerBgm calls no-op on play.
+    this.registerAudio();
+
     const params = new URLSearchParams(window.location.search);
     if (params.get("scene") === "explore") {
       const x = Number(params.get("x"));
@@ -30,5 +35,22 @@ export class BootScene extends Phaser.Scene {
       return;
     }
     this.scene.start("StartScene");
+  }
+
+  private registerAudio(): void {
+    const candidates: Array<[string, string]> = [
+      ["bgm_prologue", "/assets/audio/bgm_prologue.mp3"],
+      ["bgm_town", "/assets/audio/bgm_town.mp3"],
+      ["bgm_hanfu", "/assets/audio/bgm_hanfu.mp3"],
+      ["bgm_dressing", "/assets/audio/bgm_dressing.mp3"],
+      ["bgm_horror", "/assets/audio/bgm_horror.mp3"]
+    ];
+    for (const [id, url] of candidates) {
+      void fetch(url, { method: "HEAD" })
+        .then((response) => {
+          if (response.ok) audioManager.registerBgm(id, url);
+        })
+        .catch(() => undefined);
+    }
   }
 }

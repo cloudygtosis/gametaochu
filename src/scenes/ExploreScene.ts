@@ -5,16 +5,22 @@ import {
   type CollisionRect,
   type DoorConfig,
   type InvestigationConfig,
+  type LinyaCompanionConfig,
   type NpcConfig,
+  type NpcDialog,
+  type NpcDialogLine,
   type RoomId,
   type WorldObjectConfig
 } from "../data/exploreMaps";
+import { audioManager } from "../systems/audioManager";
+import { dialogueLog } from "../systems/dialogueLog";
 import { clueCatalog, gameState, type ClueId } from "../systems/gameState";
 
 type Direction = "down" | "left" | "right" | "up";
 
 const PLAYER_RENDER_SCALE = 1.55;
 const NPC_RENDER_SCALE = 2;
+const PLAYER_SPEED = 155;
 
 interface ExploreElements {
   root: HTMLElement;
@@ -22,6 +28,7 @@ interface ExploreElements {
   prompt: HTMLElement;
   message: HTMLElement;
   clues: HTMLElement;
+  clueToggle: HTMLButtonElement;
   confirm: HTMLButtonElement;
   npcDialog: HTMLElement;
   npcLeft: HTMLImageElement;
@@ -29,6 +36,8 @@ interface ExploreElements {
   npcSpeaker: HTMLElement;
   npcText: HTMLElement;
   npcContinue: HTMLButtonElement;
+  linyaPortrait: HTMLImageElement;
+  linyaBubble: HTMLElement;
 }
 
 export class ExploreScene extends Phaser.Scene {
@@ -40,13 +49,16 @@ export class ExploreScene extends Phaser.Scene {
   private stickVector = new Phaser.Math.Vector2(0, 0);
   private currentDirection: Direction = "down";
   private roomId: RoomId = "hub";
-  private doorCooldownUntil = 0;
   private activePrompt = "";
   private dialogOpen = false;
   private messageVisible = false;
   private messageTimer?: Phaser.Time.TimerEvent;
+  private cluePanelOpen = false;
   private nearbyNpc?: NpcConfig;
   private nearbyInvestigation?: InvestigationConfig;
+  private nearbyDoor?: DoorConfig;
+  private dialogQueue: NpcDialogLine[] = [];
+  private dialogQueueNpc?: NpcConfig;
 
   constructor() {
     super("ExploreScene");
@@ -59,10 +71,17 @@ export class ExploreScene extends Phaser.Scene {
       "W" | "A" | "S" | "D" | "SPACE" | "ENTER",
       Phaser.Input.Keyboard.Key
     >;
-    this.input.keyboard?.on("keydown-SPACE", () => this.confirmAction());
-    this.input.keyboard?.on("keydown-ENTER", () => this.confirmAction());
+    const onSpace = (): void => this.confirmAction();
+    const onEnter = (): void => this.confirmAction();
+    this.input.keyboard?.on("keydown-SPACE", onSpace);
+    this.input.keyboard?.on("keydown-ENTER", onEnter);
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.input.keyboard?.off("keydown-SPACE", onSpace);
+      this.input.keyboard?.off("keydown-ENTER", onEnter);
+      this.messageTimer?.remove(false);
+    });
     this.loadRoom(data?.roomId ?? "hub", data?.spawn);
-    this.setupVirtualStick(this.elements.root.querySelector(".explore-stick")!);
+    this.setupVirtualStick(this.elements.root.querySelector(".explore-stick") as HTMLElement);
   }
 
   update(): void {
@@ -74,7 +93,7 @@ export class ExploreScene extends Phaser.Scene {
 
     const velocity = this.readMovement();
     this.player.setVelocity(velocity.x, velocity.y);
-    this.player.setDepth(Math.round(this.player.y) + 10);
+    this.player.setDepth(Math.round(this.player.y + this.player.displayHeight / 2));
 
     if (velocity.lengthSq() === 0) {
       this.player.anims.stop();
@@ -85,7 +104,6 @@ export class ExploreScene extends Phaser.Scene {
     }
 
     this.updateNearbyInteraction();
-    this.checkDoors();
   }
 
   private loadRoom(roomId: RoomId, spawn?: { x: number; y: number }): void {
@@ -96,6 +114,7 @@ export class ExploreScene extends Phaser.Scene {
     this.activePrompt = "";
     this.nearbyNpc = undefined;
     this.nearbyInvestigation = undefined;
+    this.nearbyDoor = undefined;
     this.elements.prompt.classList.remove("visible");
 
     this.add.image(360, 640, room.background).setDisplaySize(720, 1280).setDepth(-1000);
@@ -112,16 +131,14 @@ export class ExploreScene extends Phaser.Scene {
       .setScale(PLAYER_RENDER_SCALE);
     this.player.body?.setSize(18, 18).setOffset(7, 28);
     this.player.setCollideWorldBounds(true);
-    this.player.setDepth(this.player.y + 10);
+    this.player.setDepth(this.player.y + this.player.displayHeight / 2);
 
     this.createAnimations();
     this.roomColliders.push(this.physics.add.collider(this.player, blockers));
     this.updateCluePanel();
-    this.showMessage(
-      roomId === "hub"
-        ? "先在镇上打听线索。收集至少 2 条线索后，再去汉服馆。"
-        : "靠近 NPC 或物件按确认调查。碰到门会自动离开。"
-    );
+    this.renderLinya(room.linya);
+    if (room.bgm) audioManager.playBgm(room.bgm);
+    this.showWelcomeMessage(roomId);
     void this.autoSave(roomId);
   }
 
@@ -167,8 +184,12 @@ export class ExploreScene extends Phaser.Scene {
 
   private createNpcs(npcs: NpcConfig[], blockers: Phaser.Physics.Arcade.StaticGroup): void {
     for (const npc of npcs) {
-      this.add.sprite(npc.x, npc.y, npc.sprite, 0).setScale(NPC_RENDER_SCALE).setDepth(npc.y + 5);
-      this.addCollisionRect(blockers, { x: npc.x, y: npc.y + 22, width: 34, height: 34 });
+      const sprite = this.add.sprite(npc.x, npc.y, npc.sprite, 0).setScale(NPC_RENDER_SCALE);
+      sprite.setDepth(npc.y + sprite.displayHeight / 2);
+      const w = npc.bodyWidth ?? 40;
+      const h = npc.bodyHeight ?? 26;
+      const offsetY = npc.bodyOffsetY ?? 28;
+      this.addCollisionRect(blockers, { x: npc.x, y: npc.y + offsetY, width: w, height: h });
     }
   }
 
@@ -178,22 +199,75 @@ export class ExploreScene extends Phaser.Scene {
     blockers.add(wall);
   }
 
-  private checkDoors(): void {
-    if (this.time.now < this.doorCooldownUntil) return;
-    const door = rooms[this.roomId].exits.find((candidate) => this.distanceTo(candidate.x, candidate.y) <= candidate.radius);
-    if (door) this.enterDoor(door);
+  private renderLinya(linya: LinyaCompanionConfig | undefined): void {
+    const portrait = this.elements.linyaPortrait;
+    const bubble = this.elements.linyaBubble;
+
+    // Always reset visibility/opacity classes so leftovers from the previous room don't bleed in.
+    portrait.classList.remove("fading");
+    bubble.classList.remove("fading");
+
+    if (!linya) {
+      portrait.classList.add("hidden");
+      bubble.classList.add("hidden");
+      return;
+    }
+
+    portrait.src = assetManifest.portraits[linya.portrait];
+    portrait.classList.remove("hidden");
+
+    const lines: string[] = [linya.ambientLine];
+    for (const fl of linya.flagLines ?? []) {
+      if (gameState.hasFlag(fl.ifFlag)) lines.push(fl.line);
+    }
+    for (const cl of linya.clueLines ?? []) {
+      if (gameState.clueCount() >= cl.atClueCount) lines.push(cl.line);
+    }
+
+    const line = lines[lines.length - 1];
+    bubble.textContent = `林雅：${line}`;
+    bubble.classList.remove("hidden");
+    dialogueLog.push({ speaker: "林雅", text: line });
+
+    // Bubble fades earlier; the portrait follows so Linya doesn't linger on screen.
+    this.time.delayedCall(6500, () => {
+      bubble.classList.add("fading");
+      portrait.classList.add("fading");
+    });
+    this.time.delayedCall(8500, () => {
+      bubble.classList.add("hidden");
+      portrait.classList.add("hidden");
+      bubble.classList.remove("fading");
+      portrait.classList.remove("fading");
+    });
+  }
+
+  private isInsideDoorTrigger(door: DoorConfig): boolean {
+    const halfW = door.width / 2;
+    const halfH = door.height / 2;
+    // Match against the player's feet so the trigger lines up with where the
+    // character visually stands rather than the sprite center.
+    const feetY = this.player.y + this.player.displayHeight / 2 - 8;
+    return (
+      this.player.x >= door.x - halfW &&
+      this.player.x <= door.x + halfW &&
+      feetY >= door.y - halfH &&
+      feetY <= door.y + halfH
+    );
   }
 
   private enterDoor(door: DoorConfig): void {
-    this.doorCooldownUntil = this.time.now + 800;
     if (door.target === "hanfu") {
-      if (gameState.clueCount() < 2) {
-        this.showMessage("林雅拉住小月：先别急。这个镇不对劲，我们至少再打听两条线索。");
-        this.player.setPosition(door.x, door.y + 62);
+      if (gameState.clueCount() < 5) {
+        this.showMessage(
+          `林雅拉住小月：先别急——这个镇不对劲，我们至少要凑齐五条线索。\n（当前 ${gameState.clueCount()}/5 条）`
+        );
         return;
       }
-      this.showMessage("线索已经够了。林雅深吸一口气，推开汉服馆的门。");
-      this.time.delayedCall(450, () => this.scene.start("VnScene", { startSceneId: "scene4_hanfu_interior" }));
+      this.showMessage("线索够了。林雅深吸一口气，推开汉服馆的门。");
+      this.time.delayedCall(450, () =>
+        this.scene.start("VnScene", { startSceneId: "scene4_hanfu_interior", exitScene: undefined })
+      );
       return;
     }
     this.loadRoom(door.target, door.spawn);
@@ -206,17 +280,22 @@ export class ExploreScene extends Phaser.Scene {
       ...room.investigations,
       ...room.objects.flatMap((object) => (object.investigation ? [object.investigation] : []))
     ]);
-    const door = room.exits.find((candidate) => this.distanceTo(candidate.x, candidate.y) <= candidate.radius + 20);
+    this.nearbyDoor = room.exits.find((door) => this.isInsideDoorTrigger(door));
+
+    let doorPrompt = "";
+    if (this.nearbyDoor) {
+      if (this.nearbyDoor.target === "hanfu" && gameState.clueCount() < 5) {
+        doorPrompt = `▶ 进入汉服馆（需 5 条线索 · 当前 ${gameState.clueCount()}）`;
+      } else {
+        doorPrompt = `▶ ${this.nearbyDoor.prompt ?? "进门"}`;
+      }
+    }
 
     const prompt = this.nearbyNpc
-      ? `! 和${this.nearbyNpc.name}交谈`
+      ? `▶ 与${this.nearbyNpc.name}交谈`
       : this.nearbyInvestigation
-        ? `! 调查${this.nearbyInvestigation.title}`
-        : door?.target === "hanfu"
-          ? "进入汉服馆"
-          : door
-            ? "进门"
-            : "";
+        ? `▶ 调查${this.nearbyInvestigation.title}`
+        : doorPrompt;
 
     if (prompt === this.activePrompt) return;
     this.activePrompt = prompt;
@@ -239,8 +318,9 @@ export class ExploreScene extends Phaser.Scene {
   }
 
   private confirmAction(): void {
+    audioManager.unlock();
     if (this.dialogOpen) {
-      this.closeNpcDialog();
+      this.advanceNpcDialog();
       return;
     }
     if (this.nearbyNpc) {
@@ -249,35 +329,130 @@ export class ExploreScene extends Phaser.Scene {
     }
     if (this.nearbyInvestigation) {
       this.handleInvestigation(this.nearbyInvestigation);
+      return;
     }
+    if (this.nearbyDoor) {
+      this.enterDoor(this.nearbyDoor);
+    }
+  }
+
+  private buildNpcLines(npc: NpcConfig, dialog: NpcDialog): NpcDialogLine[] {
+    const lines: NpcDialogLine[] = [];
+    const isFirst = gameState.talkCount(npc.id) === 0;
+
+    if (isFirst) {
+      lines.push(...dialog.intro);
+      for (const addon of dialog.flagAddons ?? []) {
+        if (gameState.hasFlag(addon.ifFlag)) lines.push(...addon.lines);
+      }
+    } else {
+      lines.push(...dialog.repeat);
+    }
+
+    for (const addon of dialog.clueAddons ?? []) {
+      const hasAll = addon.ifClues.every((c) => gameState.hasClue(c));
+      if (hasAll) {
+        lines.push(...addon.lines);
+        if (addon.setFlag) gameState.setFlag(addon.setFlag);
+      }
+    }
+
+    return lines;
   }
 
   private openNpcDialog(npc: NpcConfig): void {
     this.dialogOpen = true;
-    const clueText = npc.clue ? this.collectClue(npc.clue) : "";
+    this.dialogQueueNpc = npc;
+    this.dialogQueue = this.buildNpcLines(npc, npc.dialog);
+
+    if (npc.dialog.clue) {
+      const isNew = gameState.addClue(npc.dialog.clue);
+      // Mirror clue-aware "shen_family" into a runtime flag for VN branches to read.
+      gameState.setFlag(this.flagForClue(npc.dialog.clue), true);
+      if (isNew) {
+        this.dialogQueue.push({
+          speaker: "xiaoyue",
+          text: `（在笔记里记下：${clueCatalog[npc.dialog.clue].title}）`
+        });
+      }
+    }
+    gameState.recordTalk(npc.id);
+    this.updateCluePanel();
+
     this.elements.npcLeft.src = assetManifest.portraits.xiaoyue_normal_modern;
     this.elements.npcRight.src = assetManifest.portraits[npc.portrait];
-    this.elements.npcLeft.className = "portrait portrait-left dimmed";
-    this.elements.npcRight.className = "portrait portrait-right active";
-    this.elements.npcSpeaker.textContent = npc.name;
-    this.elements.npcText.textContent = `${npc.lines.join(" ")}${clueText}`;
     this.elements.npcDialog.classList.remove("hidden");
+    this.advanceNpcDialog();
+  }
+
+  private advanceNpcDialog(): void {
+    if (!this.dialogQueueNpc) {
+      this.closeNpcDialog();
+      return;
+    }
+    const next = this.dialogQueue.shift();
+    if (!next) {
+      this.closeNpcDialog();
+      return;
+    }
+    const npc = this.dialogQueueNpc;
+    let displaySpeaker = npc.name;
+    let activeLeft = false;
+    if (next.speaker === "xiaoyue") {
+      displaySpeaker = "小月";
+      activeLeft = true;
+    } else if (next.speaker === "linya") {
+      displaySpeaker = "林雅";
+      activeLeft = true;
+    }
+    this.elements.npcSpeaker.textContent = displaySpeaker;
+    this.elements.npcText.textContent = next.text;
+    this.elements.npcLeft.classList.toggle("active", activeLeft);
+    this.elements.npcLeft.classList.toggle("dimmed", !activeLeft);
+    this.elements.npcRight.classList.toggle("active", !activeLeft);
+    this.elements.npcRight.classList.toggle("dimmed", activeLeft);
+    dialogueLog.push({ speaker: displaySpeaker, text: next.text });
   }
 
   private closeNpcDialog(): void {
     this.dialogOpen = false;
+    this.dialogQueueNpc = undefined;
+    this.dialogQueue = [];
     this.elements.npcDialog.classList.add("hidden");
   }
 
   private handleInvestigation(item: InvestigationConfig): void {
-    const clueText = item.clue ? this.collectClue(item.clue) : "";
-    this.showMessage(`${item.lines.join(" ")}${clueText}`);
+    const isRevisit = item.clue ? gameState.hasClue(item.clue) : false;
+    const lines = isRevisit && item.repeatLines ? item.repeatLines : item.lines;
+    let clueText = "";
+    if (item.clue) {
+      const isNew = gameState.addClue(item.clue);
+      gameState.setFlag(this.flagForClue(item.clue), true);
+      this.updateCluePanel();
+      clueText = isNew
+        ? `\n（记下线索：${clueCatalog[item.clue].title}）`
+        : `\n（线索已在你笔记里：${clueCatalog[item.clue].title}）`;
+    }
+    const text = `${lines.join("\n")}${clueText}`;
+    dialogueLog.push({ speaker: "调查 · " + item.title, text });
+    this.showMessage(text);
   }
 
-  private collectClue(id: ClueId): string {
-    const isNew = gameState.addClue(id);
-    this.updateCluePanel();
-    return isNew ? `\n获得线索：${clueCatalog[id].title}` : `\n线索已记录：${clueCatalog[id].title}`;
+  private flagForClue(id: ClueId): string {
+    switch (id) {
+      case "shen_family":
+        return "knowsShenFamily";
+      case "stone_warning":
+        return "knowsStoneWarning";
+      case "old_photo":
+        return "knowsOldPhoto";
+      case "huangli":
+        return "knowsHuangli";
+      case "well_redrope":
+        return "knowsWellRope";
+      case "altar_paper":
+        return "knowsAltarPaper";
+    }
   }
 
   private createOverlay(): ExploreElements {
@@ -286,9 +461,11 @@ export class ExploreScene extends Phaser.Scene {
     root.innerHTML = `
       <div class="explore-topbar">
         <span class="scene-title explore-title"></span>
-        <button class="icon-button explore-menu" type="button" aria-label="菜单">☰</button>
+        <button class="icon-button explore-clue-toggle" type="button" aria-label="线索">📜</button>
       </div>
-      <div class="clue-panel"></div>
+      <div class="clue-panel hidden"></div>
+      <img class="linya-portrait hidden" alt="林雅" />
+      <div class="linya-bubble hidden"></div>
       <div class="interact-prompt"></div>
       <div class="explore-message"></div>
       <div class="explore-npc-vn hidden">
@@ -314,23 +491,33 @@ export class ExploreScene extends Phaser.Scene {
       prompt: root.querySelector<HTMLElement>(".interact-prompt")!,
       message: root.querySelector<HTMLElement>(".explore-message")!,
       clues: root.querySelector<HTMLElement>(".clue-panel")!,
+      clueToggle: root.querySelector<HTMLButtonElement>(".explore-clue-toggle")!,
       confirm: root.querySelector<HTMLButtonElement>(".confirm-action")!,
       npcDialog: root.querySelector<HTMLElement>(".explore-npc-vn")!,
       npcLeft: root.querySelector<HTMLImageElement>(".explore-npc-vn .portrait-left")!,
       npcRight: root.querySelector<HTMLImageElement>(".explore-npc-vn .portrait-right")!,
       npcSpeaker: root.querySelector<HTMLElement>(".explore-npc-vn .speaker-name")!,
       npcText: root.querySelector<HTMLElement>(".explore-npc-vn .dialogue-text")!,
-      npcContinue: root.querySelector<HTMLButtonElement>(".explore-npc-vn .continue-button")!
+      npcContinue: root.querySelector<HTMLButtonElement>(".explore-npc-vn .continue-button")!,
+      linyaPortrait: root.querySelector<HTMLImageElement>(".linya-portrait")!,
+      linyaBubble: root.querySelector<HTMLElement>(".linya-bubble")!
     };
     elements.confirm.addEventListener("click", () => this.confirmAction());
-    elements.npcContinue.addEventListener("click", () => this.closeNpcDialog());
+    elements.clueToggle.addEventListener("click", () => this.toggleCluePanel());
+    elements.npcContinue.addEventListener("click", () => this.advanceNpcDialog());
     elements.npcDialog.querySelector(".dialogue-panel")?.addEventListener("click", (event) => {
-      if (!(event.target instanceof HTMLButtonElement)) this.closeNpcDialog();
+      if (!(event.target instanceof HTMLButtonElement)) this.advanceNpcDialog();
     });
     return elements;
   }
 
-  private setupVirtualStick(stick: HTMLElement): void {
+  private toggleCluePanel(): void {
+    this.cluePanelOpen = !this.cluePanelOpen;
+    this.elements.clues.classList.toggle("hidden", !this.cluePanelOpen);
+  }
+
+  private setupVirtualStick(stick: HTMLElement | null): void {
+    if (!stick) return;
     let activePointer = -1;
     const updateVector = (event: PointerEvent) => {
       const rect = stick.getBoundingClientRect();
@@ -365,7 +552,7 @@ export class ExploreScene extends Phaser.Scene {
     if (this.cursors.up.isDown || this.keys.W.isDown) vector.y -= 1;
     if (this.cursors.down.isDown || this.keys.S.isDown) vector.y += 1;
     if (vector.lengthSq() === 0) return vector;
-    return vector.normalize().scale(155);
+    return vector.normalize().scale(PLAYER_SPEED);
   }
 
   private directionFromVelocity(velocity: Phaser.Math.Vector2): Direction {
@@ -377,13 +564,28 @@ export class ExploreScene extends Phaser.Scene {
     return { down: 0, left: 8, right: 16, up: 24 }[direction];
   }
 
+  private showWelcomeMessage(roomId: RoomId): void {
+    if (roomId === "hub") {
+      const count = gameState.clueCount();
+      const need = Math.max(0, 5 - count);
+      const msg =
+        need > 0
+          ? `（先在镇上四处打听。再收集 ${need} 条线索，就够推开汉服馆的门。）`
+          : `（五条线索都凑齐了。可以去汉服馆了——不过你也可以再听听镇上的声音。）`;
+      this.showMessage(msg);
+    } else {
+      this.showMessage("（靠近 NPC 或物件，按 确认/Space 互动。从入口往下走可以出门。）");
+    }
+  }
+
   private showMessage(message: string): void {
     this.messageTimer?.remove(false);
     this.messageVisible = true;
     this.elements.message.textContent = message;
     this.elements.message.classList.add("visible");
     this.elements.prompt.classList.remove("visible");
-    this.messageTimer = this.time.delayedCall(4800, () => {
+    const durationMs = Math.min(12000, 3200 + message.length * 90);
+    this.messageTimer = this.time.delayedCall(durationMs, () => {
       this.messageVisible = false;
       this.elements.message.classList.remove("visible");
       this.elements.prompt.classList.toggle("visible", Boolean(this.activePrompt));
@@ -393,9 +595,9 @@ export class ExploreScene extends Phaser.Scene {
   private updateCluePanel(): void {
     const clues = gameState.clueList();
     this.elements.clues.innerHTML =
-      `<strong>线索 ${clues.length}/4</strong>` +
-      clues.map((clue) => `<span>${clue.title}</span>`).join("") +
-      (clues.length >= 2 ? `<em>可进入汉服馆</em>` : `<em>至少需要 2 条</em>`);
+      `<strong>线索 ${clues.length}/${Object.keys(clueCatalog).length}（至少 5）</strong>` +
+      clues.map((clue) => `<span title="${clue.description}">${clue.title}</span>`).join("") +
+      (clues.length >= 5 ? `<em>可进入汉服馆</em>` : `<em>还需 ${5 - clues.length} 条</em>`);
   }
 
   private distanceTo(x: number, y: number): number {
@@ -412,7 +614,7 @@ export class ExploreScene extends Phaser.Scene {
           sceneId,
           playerX: Math.round(this.player?.x ?? 360),
           playerY: Math.round(this.player?.y ?? 1120),
-          flags: { clues: gameState.clueList().map((clue) => clue.id) },
+          flags: { ...gameState.flags, clues: gameState.clueList().map((clue) => clue.id) },
           inventory: [],
           playtime: 0
         })

@@ -5,8 +5,10 @@
   "type": "module",
   "scripts": {
     "dev": "concurrently -k \"npm:dev:server\" \"npm:dev:client\"",
+    "dev:lan": "concurrently -k \"npm:dev:server\" \"npm:dev:client:lan\"",
     "dev:server": "node --no-warnings=ExperimentalWarning server/index.js",
     "dev:client": "vite --host 127.0.0.1",
+    "dev:client:lan": "vite --host 0.0.0.0",
     "build": "tsc && vite build",
     "preview": "vite preview --host 127.0.0.1",
     "start": "node --no-warnings=ExperimentalWarning server/index.js"

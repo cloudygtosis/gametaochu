@@ -19,3 +19,7 @@ Thumbs.db
 .env
 .env.local
 .env.*.local
+
+# Runtime data
+data/game.sqlite
+data/game.sqlite-*

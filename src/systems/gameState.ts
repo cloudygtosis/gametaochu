@@ -1,4 +1,4 @@
-export type ClueId = "stone_warning" | "old_photo" | "huangli" | "shen_family";
+export type ClueId = "stone_warning" | "old_photo" | "huangli" | "shen_family" | "well_redrope" | "altar_paper";
 
 export interface Clue {
   id: ClueId;
@@ -26,24 +26,75 @@ export const clueCatalog: Record<ClueId, Clue> = {
     id: "shen_family",
     title: "沈家旧名",
     description: "茶铺老人说朱砂镇以前叫沈家镇，别碰那件红衣。"
+  },
+  well_redrope: {
+    id: "well_redrope",
+    title: "井沿红绳",
+    description: "老井挂着一截褪色红绳，井水黑得照不出人脸。"
+  },
+  altar_paper: {
+    id: "altar_paper",
+    title: "供桌符纸",
+    description: "杂货铺供桌压着一张朱砂符，写着“迎贵妃回宫”。"
   }
 };
 
-export const gameState = {
-  clues: new Set<ClueId>(),
-  flags: {} as Record<string, boolean>,
+export type RuntimeFlagValue = boolean | string | number;
+
+class GameState {
+  clues = new Set<ClueId>();
+  flags: Record<string, RuntimeFlagValue> = {};
+  readNodes = new Set<string>();
+  npcTalkCount: Record<string, number> = {};
+
   addClue(id: ClueId): boolean {
     const existed = this.clues.has(id);
     this.clues.add(id);
     return !existed;
-  },
+  }
+
   hasClue(id: ClueId): boolean {
     return this.clues.has(id);
-  },
+  }
+
   clueCount(): number {
     return this.clues.size;
-  },
+  }
+
   clueList(): Clue[] {
     return Array.from(this.clues).map((id) => clueCatalog[id]);
   }
-};
+
+  setFlag(name: string, value: RuntimeFlagValue = true): void {
+    this.flags[name] = value;
+  }
+
+  hasFlag(name: string): boolean {
+    return Boolean(this.flags[name]);
+  }
+
+  mergeFlags(flags: Record<string, RuntimeFlagValue> | undefined): void {
+    if (!flags) return;
+    for (const [k, v] of Object.entries(flags)) this.flags[k] = v;
+  }
+
+  markRead(globalNodeId: string): void {
+    this.readNodes.add(globalNodeId);
+  }
+
+  isRead(globalNodeId: string): boolean {
+    return this.readNodes.has(globalNodeId);
+  }
+
+  recordTalk(npcId: string): number {
+    const next = (this.npcTalkCount[npcId] ?? 0) + 1;
+    this.npcTalkCount[npcId] = next;
+    return next;
+  }
+
+  talkCount(npcId: string): number {
+    return this.npcTalkCount[npcId] ?? 0;
+  }
+}
+
+export const gameState = new GameState();

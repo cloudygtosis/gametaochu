@@ -2,6 +2,7 @@
   "id": "scene4_hanfu_interior",
   "title": "汉服馆内",
   "background": "scene4_hanfu_interior",
+  "bgm": "bgm_hanfu",
   "nodes": [
     {
       "id": "start",
@@ -10,7 +11,7 @@
       "activeSide": "right",
       "left": "xiaoyue_normal_modern",
       "right": "linya_normal_modern",
-      "text": "这家店还挺有味道的，就是……安静得有点过分。",
+      "text": "（压低声音）……这家店还挺有味道的，就是——香味重得有点呛人。这是檀香？还是哪儿来的烟？",
       "next": "shopkeeper_enter"
     },
     {
@@ -20,7 +21,7 @@
       "activeSide": "right",
       "left": "xiaoyue_normal_modern",
       "right": "laobanniang_normal",
-      "text": "两位姑娘来得正好。今日店里，只剩一套最衬人的衣裳。",
+      "text": "（不知何时已站在柜台后）……两位姑娘来得正好。今日店里，只剩一套最衬人的衣裳。",
       "next": "xiaoyue_notice"
     },
     {
@@ -30,7 +31,7 @@
       "activeSide": "left",
       "left": "xiaoyue_normal_modern",
       "right": "laobanniang_normal",
-      "text": "这件红衣……颜色好浓，像朱砂一样。",
+      "text": "这件红衣……颜色好浓，像凝了一层朱砂。袖口还绣着金线凤凰。",
       "next": "boss_offer"
     },
     {
@@ -41,6 +42,50 @@
       "left": "xiaoyue_normal_modern",
       "right": "laobanniang_normal",
       "text": "姑娘眼光真好。朱砂镇的旧衣，认人。它若认了你，旁的就都不合身了。",
+      "next": "boss_offer_question"
+    },
+    {
+      "id": "boss_offer_question",
+      "type": "dialogue",
+      "speaker": "小月",
+      "activeSide": "left",
+      "left": "xiaoyue_normal_modern",
+      "right": "laobanniang_normal",
+      "text": "（手指停在袖口的凤眼上）……您说的“认人”，是什么意思？",
+      "next": "boss_offer_dodge"
+    },
+    {
+      "id": "boss_offer_dodge",
+      "type": "dialogue",
+      "speaker": "老板娘",
+      "activeSide": "right",
+      "left": "xiaoyue_normal_modern",
+      "right": "laobanniang_normal",
+      "text": "老话，老话——是说穿上合身。姑娘别多心。",
+      "branches": [
+        { "if": "knowsShenFamily", "next": "boss_shen_hint" }
+      ],
+      "next": "choice_hanfu"
+    },
+    {
+      "id": "boss_shen_hint",
+      "type": "dialogue",
+      "speaker": "小月",
+      "activeSide": "left",
+      "left": "xiaoyue_normal_modern",
+      "right": "laobanniang_normal",
+      "text": "（茶铺老人的话又在耳边响起——“沈家的东西，认人”）……这件衣服，是沈家的吧？",
+      "next": "boss_shen_react"
+    },
+    {
+      "id": "boss_shen_react",
+      "type": "dialogue",
+      "speaker": "老板娘",
+      "activeSide": "right",
+      "left": "xiaoyue_normal_modern",
+      "right": "laobanniang_creepy",
+      "text": "（笑意停了一拍）……姑娘打听得真细。是又怎样，不是又怎样？衣裳就在你面前，试试嘛。",
+      "flag": "askedShen",
       "next": "choice_hanfu"
     },
     {
@@ -49,30 +94,39 @@
       "speaker": "小月",
       "left": "xiaoyue_normal_modern",
       "right": "laobanniang_normal",
-      "prompt": "老板娘把朱砂凤凰衣推到小月面前。",
+      "prompt": "老板娘把朱砂凤凰衣推到小月面前。架子角落里还挂着一件浅粉襦裙，几件素白的汉元素。",
       "autosave": true,
       "options": [
         {
           "id": "wear_cinnabar",
-          "icon": "📜",
-          "label": "坚持穿朱砂凤凰衣",
-          "consequence": "推进主线",
+          "icon": "🔥",
+          "label": "穿朱砂凤凰衣",
+          "consequence": "正中老板娘的意",
+          "flag": "woreCinnabar",
           "next": "wear_cinnabar"
         },
         {
           "id": "pink_skirt",
-          "icon": "📜",
-          "label": "换粉色襦裙",
-          "consequence": "推进，但老板娘强行赠送朱砂凤凰发簪",
-          "flag": "gotCinnabarHairpin",
+          "icon": "🌸",
+          "label": "换浅粉襦裙",
+          "consequence": "老板娘塞来一支朱砂凤凰簪",
+          "flags": ["worePink", "gotCinnabarHairpin"],
           "next": "pink_forced"
+        },
+        {
+          "id": "white_modern",
+          "icon": "🤍",
+          "label": "穿素白汉元素",
+          "consequence": "拒绝老板娘的红",
+          "flag": "woreWhite",
+          "next": "white_refuse"
         },
         {
           "id": "leave_shop",
           "icon": "🚪",
-          "label": "离开汉服馆",
-          "consequence": "逃离支线",
-          "flag": "escapeBranch",
+          "label": "现在就拉林雅离开",
+          "consequence": "试图离开汉服馆",
+          "flag": "triedEscape",
           "next": "leave_branch"
         }
       ]
@@ -84,8 +138,18 @@
       "activeSide": "right",
       "left": "xiaoyue_normal_modern",
       "right": "linya_surprised_modern",
-      "text": "你确定？这衣服漂亮是漂亮，可我总觉得它像在等你。",
-      "next": "to_dressing"
+      "text": "（小声）你确定？这衣服漂亮是漂亮，可我总觉得它像在等你。",
+      "next": "wear_cinnabar_reply"
+    },
+    {
+      "id": "wear_cinnabar_reply",
+      "type": "dialogue",
+      "speaker": "小月",
+      "activeSide": "left",
+      "left": "xiaoyue_normal_modern",
+      "right": "linya_normal_modern",
+      "text": "我也说不上来——可一摸到这料子，就有点放不下手。就试这一件吧。",
+      "next": "to_dressing_cinnabar"
     },
     {
       "id": "pink_forced",
@@ -94,8 +158,38 @@
       "activeSide": "right",
       "left": "xiaoyue_normal_modern",
       "right": "laobanniang_normal",
-      "text": "粉色也好。只是这支朱砂凤凰簪，姑娘一定得戴着，压衣气。",
-      "next": "to_dressing"
+      "text": "粉色也好。只是——这支朱砂凤凰簪，姑娘一定得戴着，压衣气。",
+      "next": "pink_forced_2"
+    },
+    {
+      "id": "pink_forced_2",
+      "type": "dialogue",
+      "speaker": "林雅",
+      "activeSide": "right",
+      "left": "xiaoyue_normal_modern",
+      "right": "linya_surprised_modern",
+      "text": "（小声）老板娘这簪子非要你戴……我刚才看她从布袋里掏的时候，手都在抖。",
+      "next": "to_dressing_pink"
+    },
+    {
+      "id": "white_refuse",
+      "type": "dialogue",
+      "speaker": "老板娘",
+      "activeSide": "right",
+      "left": "xiaoyue_normal_modern",
+      "right": "laobanniang_creepy",
+      "text": "……白？姑娘，朱砂镇可不兴穿白上街的。也好，也好——既是姑娘的意思，那便这套，不收姑娘红包钱。",
+      "next": "white_unease"
+    },
+    {
+      "id": "white_unease",
+      "type": "dialogue",
+      "speaker": "小月",
+      "activeSide": "left",
+      "left": "xiaoyue_normal_modern",
+      "right": "laobanniang_creepy",
+      "text": "（什么叫不收红包钱？她为什么笑得这么诡异？）……谢谢老板娘，我先进去换。",
+      "next": "to_dressing_white"
     },
     {
       "id": "leave_branch",
@@ -104,18 +198,82 @@
       "activeSide": "right",
       "left": "xiaoyue_normal_modern",
       "right": "laobanniang_creepy",
-      "text": "现在走？姑娘，酉时之前，镇门可不认生人。",
-      "next": "to_dressing"
+      "text": "（拦在门口，笑容没动）现在走？姑娘，酉时之前，镇门可不认生人。",
+      "next": "leave_branch_press"
     },
     {
-      "id": "to_dressing",
+      "id": "leave_branch_press",
+      "type": "choice",
+      "speaker": "小月",
+      "left": "xiaoyue_normal_modern",
+      "right": "laobanniang_creepy",
+      "prompt": "门外天色又暗了一格。老板娘没让开。",
+      "options": [
+        {
+          "id": "force_leave",
+          "icon": "🏃",
+          "label": "推开她冲出门",
+          "consequence": "门外的雾，比来时浓了三倍",
+          "death": true,
+          "next": "leave_branch_death"
+        },
+        {
+          "id": "back_down",
+          "icon": "📜",
+          "label": "“……那就先试一件。”",
+          "consequence": "妥协，朱砂凤凰衣被推到面前",
+          "flag": "woreCinnabar",
+          "next": "leave_back_down"
+        }
+      ]
+    },
+    {
+      "id": "leave_branch_death",
+      "type": "death",
+      "title": "死亡结局：雾里失迹",
+      "left": "xiaoyue_scared_guifei",
+      "text": "小月推开门，雾把视线截断成一片白。再听到林雅声音的时候，那声音已经从身后变成了前面。",
+      "retryChoice": "scene4_hanfu_interior:leave_branch_press"
+    },
+    {
+      "id": "leave_back_down",
+      "type": "dialogue",
+      "speaker": "林雅",
+      "activeSide": "right",
+      "left": "xiaoyue_normal_modern",
+      "right": "linya_surprised_modern",
+      "text": "（凑过来，小声）你也别太怂——这老板娘根本不让人走啊。试一件就试一件，赶紧出来。",
+      "next": "to_dressing_cinnabar"
+    },
+    {
+      "id": "to_dressing_cinnabar",
       "type": "dialogue",
       "speaker": "小月",
       "activeSide": "left",
       "left": "xiaoyue_normal_modern",
-      "right": "laobanniang_normal",
-      "text": "我进去换一下。林雅，你就在外面等我。",
-      "next": "scene5_dressingroom:start"
+      "right": "linya_normal_modern",
+      "text": "我进去换。林雅，你就守在门口，要是十分钟我没出来，你就喊我。",
+      "next": "scene5_dressingroom:enter_cinnabar"
+    },
+    {
+      "id": "to_dressing_pink",
+      "type": "dialogue",
+      "speaker": "小月",
+      "activeSide": "left",
+      "left": "xiaoyue_normal_modern",
+      "right": "linya_normal_modern",
+      "text": "（把朱砂簪握进手心，凉得像金属，又像活的）……我进去换。",
+      "next": "scene5_dressingroom:enter_pink"
+    },
+    {
+      "id": "to_dressing_white",
+      "type": "dialogue",
+      "speaker": "小月",
+      "activeSide": "left",
+      "left": "xiaoyue_normal_modern",
+      "right": "linya_normal_modern",
+      "text": "（把素白汉元素抱在怀里，像抱住一块挡箭牌）……我进去换。",
+      "next": "scene5_dressingroom:enter_white"
     }
   ]
 }

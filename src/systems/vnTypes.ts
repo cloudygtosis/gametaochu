@@ -10,8 +10,24 @@ export interface ChoiceOption {
   consequence: string;
   next: string;
   flag?: string;
+  flags?: string[];
   death?: boolean;
+  requires?: string;
+  hideIfMissing?: boolean;
 }
+
+export interface ConditionalNext {
+  if: string;
+  next: string;
+}
+
+export type VnEffect =
+  | "mirrorPulse"
+  | "crossing"
+  | "shake"
+  | "flashWhite"
+  | "redPulse"
+  | "fadeBlack";
 
 export interface ScriptNode {
   id: string;
@@ -24,17 +40,21 @@ export interface ScriptNode {
   text?: string;
   prompt?: string;
   next?: string;
+  branches?: ConditionalNext[];
   options?: ChoiceOption[];
   autosave?: boolean;
-  effect?: "mirrorPulse" | "crossing";
+  effect?: VnEffect;
   retryChoice?: string;
   background?: BackgroundKey;
+  bgm?: string;
+  sfx?: string;
 }
 
 export interface SceneScript {
   id: string;
   title: string;
   background: BackgroundKey;
+  bgm?: string;
   nodes: ScriptNode[];
 }
 

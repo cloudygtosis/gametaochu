@@ -6,11 +6,13 @@ export class VnRuntime {
   private currentId: string;
   private previousChoiceId = "";
 
-  readonly flags: RuntimeFlags = {};
+  readonly flags: RuntimeFlags;
   readonly inventory: string[] = [];
   readonly startedAt = Date.now();
 
-  constructor(scenes: SceneScript[], startSceneId: string) {
+  constructor(scenes: SceneScript[], startSceneId: string, initialFlags?: RuntimeFlags) {
+    this.flags = { ...(initialFlags ?? {}) };
+
     for (const scene of scenes) {
       for (const node of scene.nodes) {
         const globalId = this.toGlobalId(scene.id, node.id);
@@ -23,7 +25,8 @@ export class VnRuntime {
         };
         this.nodes.set(globalId, runtimeNode);
       }
-      this.sceneStarts.set(scene.id, this.toGlobalId(scene.id, scenes.find((item) => item.id === scene.id)?.nodes[0].id ?? "start"));
+      const firstNodeId = scene.nodes[0]?.id ?? "start";
+      this.sceneStarts.set(scene.id, this.toGlobalId(scene.id, firstNodeId));
     }
 
     const startId = this.sceneStarts.get(startSceneId);
@@ -45,22 +48,26 @@ export class VnRuntime {
     return Math.floor((Date.now() - this.startedAt) / 1000);
   }
 
+  setFlag(name: string, value: boolean | string | number = true): void {
+    this.flags[name] = value;
+  }
+
+  hasFlag(name: string): boolean {
+    return Boolean(this.flags[name]);
+  }
+
   advance(): RuntimeNode {
-    // VN nodes are a small directed graph loaded from JSON so dialogue edits do not
-    // require code changes. Cross-scene jumps use "sceneId:nodeId".
-    const next = this.current.next;
-    if (!next) return this.current;
-    this.currentId = this.resolveNext(next, this.current.sceneId);
+    const node = this.current;
+    const next = this.pickBranch(node);
+    if (!next) return node;
+    this.currentId = this.resolveNext(next, node.sceneId);
     return this.current;
   }
 
   choose(option: ChoiceOption): RuntimeNode {
-    // Choices are the only place where branch flags mutate; death nodes keep a pointer
-    // back to the last choice so "重新选择" never restarts the whole chapter.
     this.previousChoiceId = this.current.globalId;
-    if (option.flag) {
-      this.flags[option.flag] = true;
-    }
+    if (option.flag) this.flags[option.flag] = true;
+    if (option.flags) for (const f of option.flags) this.flags[f] = true;
     this.currentId = this.resolveNext(option.next, this.current.sceneId);
     return this.current;
   }
@@ -76,6 +83,23 @@ export class VnRuntime {
   jump(globalOrLocalId: string): RuntimeNode {
     this.currentId = this.resolveNext(globalOrLocalId, this.current.sceneId);
     return this.current;
+  }
+
+  visibleChoices(node: RuntimeNode): ChoiceOption[] {
+    if (!node.options) return [];
+    return node.options.filter((opt) => {
+      if (opt.requires && !this.hasFlag(opt.requires) && opt.hideIfMissing) return false;
+      return true;
+    });
+  }
+
+  private pickBranch(node: ScriptNode): string | undefined {
+    if (node.branches) {
+      for (const branch of node.branches) {
+        if (this.hasFlag(branch.if)) return branch.next;
+      }
+    }
+    return node.next;
   }
 
   private toGlobalId(sceneId: string, nodeId: string): string {

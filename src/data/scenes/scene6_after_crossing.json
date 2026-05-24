@@ -2,13 +2,14 @@
   "id": "scene6_after_crossing",
   "title": "穿越后的街道",
   "background": "scene6_mainstreet_horror",
+  "bgm": "bgm_horror",
   "nodes": [
     {
       "id": "start",
       "type": "dialogue",
       "speaker": "旁白",
       "left": "xiaoyue_possessed_guifei",
-      "text": "门开了。汉服馆不见了，街道像被血色灯笼重新缝过一遍。",
+      "text": "门开了。汉服馆不见了——主街还是那条主街，只是红灯笼变成了三倍。雾里挤满了低头不敢看她的人影。",
       "autosave": true,
       "next": "boss_niangniang"
     },
@@ -19,7 +20,30 @@
       "activeSide": "right",
       "left": "xiaoyue_possessed_guifei",
       "right": "laobanniang_creepy",
-      "text": "娘娘，吉时快到了。镇上人，都等您回宫呢。",
+      "text": "（弯下腰，声音绵软）……娘娘，吉时快到了。镇上人，都等您回宫呢。",
+      "next": "xiaoyue_inner"
+    },
+    {
+      "id": "xiaoyue_inner",
+      "type": "dialogue",
+      "speaker": "小月",
+      "activeSide": "left",
+      "left": "xiaoyue_possessed_guifei",
+      "right": "laobanniang_creepy",
+      "branches": [
+        { "if": "keptSelf", "next": "xiaoyue_inner_resist" }
+      ],
+      "text": "（脑子里像被一层暗红色的纱裹住——“娘娘”这两个字，居然真的让她想点头）",
+      "next": "choice_after_crossing"
+    },
+    {
+      "id": "xiaoyue_inner_resist",
+      "type": "dialogue",
+      "speaker": "小月",
+      "activeSide": "left",
+      "left": "xiaoyue_scared_guifei",
+      "right": "laobanniang_creepy",
+      "text": "（咬破的舌尖还在隐隐作痛——“我叫小月，我叫小月。”一字一句压在牙根下）",
       "next": "choice_after_crossing"
     },
     {
@@ -28,23 +52,33 @@
       "speaker": "小月",
       "left": "xiaoyue_possessed_guifei",
       "right": "laobanniang_creepy",
-      "prompt": "老板娘弯着腰，像早就认识她。",
+      "prompt": "老板娘弯着腰，像早就认识她。两侧街边的人，没有一个抬头。",
       "autosave": true,
       "options": [
         {
           "id": "play_along",
           "icon": "📜",
           "label": "配合扮演",
-          "consequence": "推进，为第一章铺垫",
+          "consequence": "接下她递来的“凤”字",
           "next": "play_along"
         },
         {
           "id": "deny_modern",
           "icon": "⚠️",
-          "label": "大声否认“我是现代人”",
-          "consequence": "触发隐藏剧情",
+          "label": "“我不是娘娘——我叫小月。”",
+          "consequence": "直说现代身份",
           "flag": "angeredLaobanniang",
           "next": "deny_modern"
+        },
+        {
+          "id": "ask_shen",
+          "icon": "❓",
+          "label": "“沈姑娘是谁？”",
+          "consequence": "用茶铺老人的线索反问",
+          "requires": "knowsShenFamily",
+          "hideIfMissing": true,
+          "flag": "askedShenLater",
+          "next": "ask_shen"
         },
         {
           "id": "run",
@@ -59,18 +93,26 @@
     {
       "id": "play_along",
       "type": "ending",
-      "title": "序章完",
+      "title": "序章完 · 顺从",
       "left": "xiaoyue_possessed_guifei",
       "right": "laobanniang_creepy",
-      "text": "小月低下头，听见自己用陌生的声音说：带路。远处唢呐声起，第一章的门被推开一条缝。"
+      "text": "小月低下头，听见自己用陌生的声音说：“带路。”远处唢呐声起，第一章的门，被推开一条缝。"
     },
     {
       "id": "deny_modern",
       "type": "ending",
-      "title": "隐藏线索",
-      "left": "xiaoyue_possessed_guifei",
+      "title": "序章完 · 抗拒",
+      "left": "xiaoyue_scared_guifei",
       "right": "laobanniang_creepy",
-      "text": "老板娘的笑停了一瞬。她轻声说：现代？沈家祠堂里，也有个姑娘这么喊过。"
+      "text": "老板娘的笑停了一瞬。她轻声说：“现代？……沈家祠堂里，也有个姑娘这么喊过。”话音未落，街上的人，开始一个一个抬起头。"
+    },
+    {
+      "id": "ask_shen",
+      "type": "ending",
+      "title": "序章完 · 知名",
+      "left": "xiaoyue_scared_guifei",
+      "right": "laobanniang_creepy",
+      "text": "老板娘的眼睛缩了一下——“沈姑娘”三个字，让她退了半步。她笑得更深：“……娘娘，您可算想起来了？”"
     },
     {
       "id": "death_surrounded",
